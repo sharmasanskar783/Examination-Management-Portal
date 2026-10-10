@@ -104,3 +104,71 @@ def booking_rows(where="", args=()):
     JOIN users x ON x.id = s.examiner_id
     """
     return query(sql + " " + where + " ORDER BY b.id DESC", args)
+
+
+# ------------------------------------------------------ login / register
+@app.route("/")
+def home():
+    user = current_user()
+    if user is None:
+        return redirect(url_for("login"))
+    return redirect("/" + user["role"])
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "")
+        department = request.form.get("department", "").strip()
+        contact = request.form.get("contact", "").strip()
+
+        if not name or not email or not password:
+            flash("Name, email and password are required.", "danger")
+        elif role not in ("student", "examiner"):
+            flash("Please choose Student or Examiner.", "danger")
+        elif len(password) < 6:
+            flash("Password must have at least 6 characters.", "danger")
+        elif query("SELECT id FROM users WHERE email = ?", (email,), one=True):
+            flash("That email is already registered.", "danger")
+        else:
+            status = "pending" if role == "examiner" else "active"
+            execute(
+                "INSERT INTO users (name, email, password, role, status, department, contact) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (name, email, generate_password_hash(password), role, status, department, contact),
+            )
+            if role == "examiner":
+                flash("Registered. You can log in after the admin approves you.", "info")
+            else:
+                flash("Registration successful. Please log in.", "success")
+            return redirect(url_for("login"))
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        user = query("SELECT * FROM users WHERE email = ?", (email,), one=True)
+        if user is None or not check_password_hash(user["password"], password):
+            flash("Wrong email or password.", "danger")
+        elif user["status"] == "pending":
+            flash("Your account is waiting for admin approval.", "warning")
+        elif user["status"] == "deactivated":
+            flash("Your account has been deactivated.", "danger")
+        else:
+            session.clear()
+            session["user_id"] = user["id"]
+            return redirect("/" + user["role"])
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out.", "info")
+    return redirect(url_for("login"))
