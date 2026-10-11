@@ -233,3 +233,59 @@ def student_dashboard():
     return render_template("student_dashboard.html", available_exams=available_exams,
                            available_slots=available_slots, booked=booked,
                            upcoming=upcoming, results=results)
+
+
+# ------------------------------------------------------------ admin: courses
+@app.route("/admin/courses")
+@login_required("admin")
+def admin_courses():
+    courses = query("SELECT * FROM courses ORDER BY code")
+    return render_template("admin_courses.html", courses=courses)
+
+
+@app.route("/admin/courses/new", methods=["GET", "POST"])
+@app.route("/admin/courses/<int:course_id>/edit", methods=["GET", "POST"])
+@login_required("admin")
+def admin_course_form(course_id=None):
+    course = None
+    if course_id is not None:
+        course = query("SELECT * FROM courses WHERE id = ?", (course_id,), one=True)
+        if course is None:
+            abort(404)
+    values = dict(course) if course else {}
+    if request.method == "POST":
+        values = request.form
+        code = request.form.get("code", "").strip()
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+        status = request.form.get("status", "Active")
+        same_code = query("SELECT id FROM courses WHERE code = ? AND id != ?",
+                          (code, course_id or 0), one=True)
+        if not code or not name:
+            flash("Course code and name are required.", "danger")
+        elif status not in ("Active", "Inactive"):
+            flash("Invalid status.", "danger")
+        elif same_code:
+            flash("Another course already uses that code.", "danger")
+        else:
+            if course is None:
+                execute("INSERT INTO courses (code, name, description, status) VALUES (?, ?, ?, ?)",
+                        (code, name, description, status))
+                flash("Course added.", "success")
+            else:
+                execute("UPDATE courses SET code = ?, name = ?, description = ?, status = ? WHERE id = ?",
+                        (code, name, description, status, course_id))
+                flash("Course updated.", "success")
+            return redirect(url_for("admin_courses"))
+    return render_template("admin_course_form.html", course=course, values=values)
+
+
+@app.route("/admin/courses/<int:course_id>/delete", methods=["POST"])
+@login_required("admin")
+def admin_course_delete(course_id):
+    if count("SELECT COUNT(*) FROM exams WHERE course_id = ?", (course_id,)) > 0:
+        flash("This course has examinations, so it cannot be deleted. Mark it Inactive instead.", "danger")
+    else:
+        execute("DELETE FROM courses WHERE id = ?", (course_id,))
+        flash("Course deleted.", "success")
+    return redirect(url_for("admin_courses"))

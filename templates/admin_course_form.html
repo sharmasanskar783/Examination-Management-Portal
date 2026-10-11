@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Course{% endblock %}
+{% block content %}
+<h3 class="mb-3">{% if course %}Edit course{% else %}Add course{% endif %}</h3>
+<form method="post" class="card card-body shadow-sm" style="max-width: 600px;">
+  <div class="mb-3">
+    <label class="form-label">Course code</label>
+    <input type="text" name="code" class="form-control" value="{{ values.get('code', '') }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Course name</label>
+    <input type="text" name="name" class="form-control" value="{{ values.get('name', '') }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Description</label>
+    <textarea name="description" class="form-control" rows="3">{{ values.get('description', '') or '' }}</textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Status</label>
+    <select name="status" class="form-select">
+      {% for s in ['Active', 'Inactive'] %}
+        <option value="{{ s }}" {% if values.get('status', 'Active') == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('admin_courses') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
