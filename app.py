@@ -289,3 +289,23 @@ def admin_course_delete(course_id):
         execute("DELETE FROM courses WHERE id = ?", (course_id,))
         flash("Course deleted.", "success")
     return redirect(url_for("admin_courses"))
+
+
+# --------------------------------------------------------- admin: examiners
+@app.route("/admin/examiners")
+@login_required("admin")
+def admin_examiners():
+    examiners = query("SELECT * FROM users WHERE role = 'examiner' ORDER BY status, name")
+    return render_template("admin_examiners.html", examiners=examiners)
+
+
+@app.route("/admin/examiners/<int:user_id>/<action>", methods=["POST"])
+@login_required("admin")
+def admin_examiner_action(user_id, action):
+    examiner = query("SELECT * FROM users WHERE id = ? AND role = 'examiner'", (user_id,), one=True)
+    if examiner is None or action not in ("approve", "deactivate"):
+        abort(404)
+    new_status = "active" if action == "approve" else "deactivated"
+    execute("UPDATE users SET status = ? WHERE id = ?", (new_status, user_id))
+    flash("Examiner %s is now %s." % (examiner["name"], new_status), "success")
+    return redirect(url_for("admin_examiners"))

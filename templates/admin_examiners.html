@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Examiners{% endblock %}
+{% block content %}
+<h3 class="mb-3">Examiners</h3>
+<table class="table table-striped bg-white">
+  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Contact</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for u in examiners %}
+      <tr>
+        <td>{{ u.id }}</td><td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.department }}</td><td>{{ u.contact }}</td><td>{{ u.status }}</td>
+        <td class="text-nowrap">
+          {% if u.status != 'active' %}
+            <form class="d-inline" method="post" action="/admin/examiners/{{ u.id }}/approve">
+              <button class="btn btn-sm btn-success">Approve</button>
+            </form>
+          {% endif %}
+          {% if u.status == 'active' %}
+            <form class="d-inline" method="post" action="/admin/examiners/{{ u.id }}/deactivate">
+              <button class="btn btn-sm btn-outline-danger">Deactivate</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="text-muted">No examiners have registered yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
