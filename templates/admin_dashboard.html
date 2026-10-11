@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<h3 class="mb-4">Admin Dashboard</h3>
+<div class="row g-3">
+  {% for label, number in stats.items() %}
+    <div class="col-6 col-md-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h2>{{ number }}</h2>
+          <p class="mb-0 text-muted">{{ label }}</p>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

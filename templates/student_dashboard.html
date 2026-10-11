@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard{% endblock %}
+{% block content %}
+<h3 class="mb-4">Student Dashboard</h3>
+<h5>Available examinations</h5>
+<table class="table table-striped bg-white mb-4">
+  <thead><tr><th>Examination</th><th>Course</th><th>Type</th><th>Booking ends</th></tr></thead>
+  <tbody>
+    {% for e in available_exams %}
+      <tr><td><a href="/student/exams/{{ e.id }}">{{ e.name }}</a></td><td>{{ e.course_name }}</td><td>{{ e.exam_type }}</td><td>{{ e.booking_end }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="text-muted">No examinations are open for booking.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h5>Available examination slots</h5>
+<table class="table table-striped bg-white mb-4">
+  <thead><tr><th>Examination</th><th>Date</th><th>Time</th><th>Seats left</th></tr></thead>
+  <tbody>
+    {% for s in available_slots %}
+      <tr><td>{{ s.exam_name }}</td><td>{{ s.slot_date }}</td><td>{{ s.start_time }} - {{ s.end_time }}</td><td>{{ s.available_seats }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="text-muted">No free slots right now.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h5>Upcoming examinations</h5>
+<ul class="mb-4">
+  {% for b in upcoming %}
+    <li>{{ b.exam_name }} on {{ b.slot_date }} at {{ b.start_time }}</li>
+  {% else %}
+    <li class="text-muted">Nothing upcoming.</li>
+  {% endfor %}
+</ul>
+<h5>Booked slots</h5>
+<ul class="mb-4">
+  {% for b in booked %}
+    <li>{{ b.exam_name }} - {{ b.slot_date }} {{ b.start_time }}-{{ b.end_time }}</li>
+  {% else %}
+    <li class="text-muted">You have no active bookings.</li>
+  {% endfor %}
+</ul>
+<h5>Published results</h5>
+<ul>
+  {% for b in results %}
+    <li>{{ b.exam_name }}: {{ b.total_marks }} / {{ b.max_marks }}</li>
+  {% else %}
+    <li class="text-muted">No results published yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

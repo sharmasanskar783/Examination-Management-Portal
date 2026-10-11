@@ -172,3 +172,64 @@ def logout():
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("login"))
+
+
+# -------------------------------------------------------------- dashboards
+@app.route("/admin")
+@login_required("admin")
+def admin_dashboard():
+    stats = {
+        "Courses": count("SELECT COUNT(*) FROM courses"),
+        "Examinations": count("SELECT COUNT(*) FROM exams"),
+        "Examiners": count("SELECT COUNT(*) FROM users WHERE role = 'examiner'"),
+        "Students": count("SELECT COUNT(*) FROM users WHERE role = 'student'"),
+        "Examination slots": count("SELECT COUNT(*) FROM slots"),
+        "Bookings": count("SELECT COUNT(*) FROM bookings"),
+    }
+    return render_template("admin_dashboard.html", stats=stats)
+
+
+@app.route("/examiner")
+@login_required("examiner")
+def examiner_dashboard():
+    user = current_user()
+    exams = query(
+        "SELECT e.*, c.name AS course_name FROM exams e "
+        "JOIN courses c ON c.id = e.course_id WHERE e.examiner_id = ?",
+        (user["id"],),
+    )
+    slot_count = count("SELECT COUNT(*) FROM slots WHERE examiner_id = ?", (user["id"],))
+    booked_count = count(
+        "SELECT COUNT(*) FROM bookings b JOIN slots s ON s.id = b.slot_id "
+        "WHERE s.examiner_id = ? AND b.status IN ('Booked', 'Completed')",
+        (user["id"],),
+    )
+    pending_count = count(
+        "SELECT COUNT(*) FROM bookings b JOIN slots s ON s.id = b.slot_id "
+        "WHERE s.examiner_id = ? AND b.status = 'Booked'",
+        (user["id"],),
+    )
+    return render_template("examiner_dashboard.html", exams=exams, slot_count=slot_count,
+                           booked_count=booked_count, pending_count=pending_count)
+
+
+@app.route("/student")
+@login_required("student")
+def student_dashboard():
+    user = current_user()
+    available_exams = query(
+        "SELECT e.*, c.name AS course_name FROM exams e "
+        "JOIN courses c ON c.id = e.course_id WHERE e.status = 'Booking Open'"
+    )
+    available_slots = query(
+        "SELECT s.*, e.name AS exam_name FROM slots s JOIN exams e ON e.id = s.exam_id "
+        "WHERE e.status = 'Booking Open' AND s.available_seats > 0 "
+        "ORDER BY s.slot_date, s.start_time"
+    )
+    mine = booking_rows("WHERE b.student_id = ?", (user["id"],))
+    booked = [b for b in mine if b["status"] == "Booked"]
+    upcoming = [b for b in booked if b["slot_date"] >= today()]
+    results = [b for b in mine if b["status"] == "Completed" and b["exam_status"] == "Completed"]
+    return render_template("student_dashboard.html", available_exams=available_exams,
+                           available_slots=available_slots, booked=booked,
+                           upcoming=upcoming, results=results)

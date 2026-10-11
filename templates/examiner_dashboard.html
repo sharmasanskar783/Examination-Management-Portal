@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Examiner Dashboard{% endblock %}
+{% block content %}
+<h3 class="mb-4">Examiner Dashboard</h3>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h2>{{ exams|length }}</h2><p class="mb-0 text-muted">Assigned examinations</p></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h2>{{ slot_count }}</h2><p class="mb-0 text-muted">Created slots</p></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h2>{{ booked_count }}</h2><p class="mb-0 text-muted">Students booked</p></div></div></div>
+  <div class="col-6 col-md-3"><div class="card text-center shadow-sm"><div class="card-body"><h2>{{ pending_count }}</h2><p class="mb-0 text-muted">Pending evaluations</p></div></div></div>
+</div>
+<h5>Assigned examinations</h5>
+<table class="table table-striped bg-white">
+  <thead><tr><th>Examination</th><th>Course</th><th>Type</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for e in exams %}
+      <tr><td>{{ e.name }}</td><td>{{ e.course_name }}</td><td>{{ e.exam_type }}</td><td>{{ e.status }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="text-muted">No examinations assigned yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
