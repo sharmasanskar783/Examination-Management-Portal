@@ -309,3 +309,103 @@ def admin_examiner_action(user_id, action):
     execute("UPDATE users SET status = ? WHERE id = ?", (new_status, user_id))
     flash("Examiner %s is now %s." % (examiner["name"], new_status), "success")
     return redirect(url_for("admin_examiners"))
+
+
+# ------------------------------------------------------------- admin: exams
+@app.route("/admin/exams")
+@login_required("admin")
+def admin_exams():
+    exams = query(
+        "SELECT e.*, c.name AS course_name, u.name AS examiner_name FROM exams e "
+        "JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.examiner_id "
+        "ORDER BY e.id DESC"
+    )
+    return render_template("admin_exams.html", exams=exams, statuses=EXAM_STATUSES)
+
+
+@app.route("/admin/exams/new", methods=["GET", "POST"])
+@app.route("/admin/exams/<int:exam_id>/edit", methods=["GET", "POST"])
+@login_required("admin")
+def admin_exam_form(exam_id=None):
+    exam = None
+    if exam_id is not None:
+        exam = query("SELECT * FROM exams WHERE id = ?", (exam_id,), one=True)
+        if exam is None:
+            abort(404)
+    values = dict(exam) if exam else {}
+    courses = query("SELECT * FROM courses WHERE status = 'Active' ORDER BY name")
+    examiners = query("SELECT * FROM users WHERE role = 'examiner' AND status = 'active' ORDER BY name")
+    if request.method == "POST":
+        values = request.form
+        f = {k: request.form.get(k, "").strip() for k in (
+            "course_id", "examiner_id", "name", "exam_type", "duration", "max_marks",
+            "slot_create_start", "slot_create_end", "booking_start", "booking_end")}
+        error = None
+        if not f["name"]:
+            error = "Examination name is required."
+        elif not query("SELECT id FROM courses WHERE id = ?", (to_int(f["course_id"]),), one=True):
+            error = "Please choose a course."
+        elif not query("SELECT id FROM users WHERE id = ? AND role = 'examiner' AND status = 'active'",
+                       (to_int(f["examiner_id"]),), one=True):
+            error = "Please choose an approved examiner."
+        elif f["exam_type"] not in EXAM_TYPES:
+            error = "Please choose an examination type."
+        elif (to_int(f["duration"]) or 0) < 1 or (to_int(f["max_marks"]) or 0) < 1:
+            error = "Duration and maximum marks must be positive numbers."
+        elif not all(valid_date(f[k]) for k in ("slot_create_start", "slot_create_end",
+                                                "booking_start", "booking_end")):
+            error = "Please fill all four dates."
+        elif f["slot_create_start"] > f["slot_create_end"]:
+            error = "Slot creation end date cannot be before its start date."
+        elif f["booking_start"] > f["booking_end"]:
+            error = "Booking end date cannot be before its start date."
+        if error:
+            flash(error, "danger")
+        else:
+            data = (int(f["course_id"]), int(f["examiner_id"]), f["name"], f["exam_type"],
+                    int(f["duration"]), int(f["max_marks"]), f["slot_create_start"],
+                    f["slot_create_end"], f["booking_start"], f["booking_end"])
+            if exam is None:
+                execute("INSERT INTO exams (course_id, examiner_id, name, exam_type, duration, "
+                        "max_marks, slot_create_start, slot_create_end, booking_start, booking_end) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
+                flash("Examination created (status: Draft).", "success")
+            else:
+                db = get_db()
+                db.execute("UPDATE exams SET course_id = ?, examiner_id = ?, name = ?, exam_type = ?, "
+                           "duration = ?, max_marks = ?, slot_create_start = ?, slot_create_end = ?, "
+                           "booking_start = ?, booking_end = ? WHERE id = ?", data + (exam_id,))
+                # if the examiner changed, move the existing slots to the new examiner too
+                db.execute("UPDATE slots SET examiner_id = ? WHERE exam_id = ?", (int(f["examiner_id"]),
+                                                                                   exam_id))
+                db.commit()
+                flash("Examination updated.", "success")
+            return redirect(url_for("admin_exams"))
+    return render_template("admin_exam_form.html", exam=exam, values=values, courses=courses,
+                           examiners=examiners, exam_types=EXAM_TYPES)
+
+
+@app.route("/admin/exams/<int:exam_id>/status", methods=["POST"])
+@login_required("admin")
+def admin_exam_status(exam_id):
+    status = request.form.get("status", "")
+    if status not in EXAM_STATUSES:
+        flash("Invalid status.", "danger")
+    else:
+        execute("UPDATE exams SET status = ? WHERE id = ?", (status, exam_id))
+        flash("Status changed to " + status + ".", "success")
+    return redirect(url_for("admin_exams"))
+
+
+@app.route("/admin/exams/<int:exam_id>/delete", methods=["POST"])
+@login_required("admin")
+def admin_exam_delete(exam_id):
+    if count("SELECT COUNT(*) FROM slots WHERE exam_id = ?", (exam_id,)) > 0:
+        flash("This examination already has slots, so it cannot be deleted.", "danger")
+    else:
+        db = get_db()
+        db.execute("DELETE FROM rubrics WHERE exam_id = ?", (exam_id,))
+        db.execute("DELETE FROM exams WHERE id = ?", (exam_id,))
+        db.commit()
+        flash("Examination deleted.", "success")
+    return redirect(url_for("admin_exams"))

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Examinations{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3>Examinations</h3>
+  <a class="btn btn-primary" href="{{ url_for('admin_exam_form') }}">Add examination</a>
+</div>
+<p class="text-muted">Use the status box to open or close slot creation and booking.
+Flow: Draft &rarr; Slot Creation &rarr; Booking Open &rarr; Closed &rarr; Completed (results become visible to students).</p>
+<div class="table-responsive">
+<table class="table table-striped bg-white">
+  <thead>
+    <tr><th>ID</th><th>Name</th><th>Course</th><th>Type</th><th>Examiner</th><th>Marks</th>
+    <th>Slot creation</th><th>Booking</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for e in exams %}
+      <tr>
+        <td>{{ e.id }}</td><td>{{ e.name }}</td><td>{{ e.course_name }}</td><td>{{ e.exam_type }}</td>
+        <td>{{ e.examiner_name }}</td><td>{{ e.max_marks }}</td>
+        <td>{{ e.slot_create_start }} to {{ e.slot_create_end }}</td>
+        <td>{{ e.booking_start }} to {{ e.booking_end }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin_exam_status', exam_id=e.id) }}" class="d-flex gap-1">
+            <select name="status" class="form-select form-select-sm">
+              {% for s in statuses %}
+                <option value="{{ s }}" {% if e.status == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-success">Set</button>
+          </form>
+        </td>
+        <td class="text-nowrap">
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_rubrics', exam_id=e.id) }}">Rubrics</a>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_exam_form', exam_id=e.id) }}">Edit</a>
+          <form class="d-inline" method="post" action="{{ url_for('admin_exam_delete', exam_id=e.id) }}">
+            <button class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10" class="text-muted">No examinations yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Examination{% endblock %}
+{% block content %}
+<h3 class="mb-3">{% if exam %}Edit examination{% else %}Add examination{% endif %}</h3>
+{% if not courses %}<div class="alert alert-warning">Add an active course first.</div>{% endif %}
+{% if not examiners %}<div class="alert alert-warning">There is no approved examiner yet. Approve one first.</div>{% endif %}
+<form method="post" class="card card-body shadow-sm" style="max-width: 700px;">
+  <div class="mb-3">
+    <label class="form-label">Examination name</label>
+    <input type="text" name="name" class="form-control" value="{{ values.get('name', '') }}" required>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Course</label>
+      <select name="course_id" class="form-select" required>
+        <option value="">-- choose --</option>
+        {% for c in courses %}
+          <option value="{{ c.id }}" {% if values.get('course_id')|string == c.id|string %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Assigned examiner</label>
+      <select name="examiner_id" class="form-select" required>
+        <option value="">-- choose --</option>
+        {% for u in examiners %}
+          <option value="{{ u.id }}" {% if values.get('examiner_id')|string == u.id|string %}selected{% endif %}>{{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Type</label>
+      <select name="exam_type" class="form-select" required>
+        <option value="">-- choose --</option>
+        {% for t in exam_types %}
+          <option value="{{ t }}" {% if values.get('exam_type') == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Duration (minutes)</label>
+      <input type="number" name="duration" min="1" class="form-control" value="{{ values.get('duration', '') }}" required>
+    </div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Maximum marks</label>
+      <input type="number" name="max_marks" min="1" class="form-control" value="{{ values.get('max_marks', '') }}" required>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Slot creation start date</label>
+      <input type="date" name="slot_create_start" class="form-control" value="{{ values.get('slot_create_start', '') }}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Slot creation end date</label>
+      <input type="date" name="slot_create_end" class="form-control" value="{{ values.get('slot_create_end', '') }}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Slot booking start date</label>
+      <input type="date" name="booking_start" class="form-control" value="{{ values.get('booking_start', '') }}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Slot booking end date</label>
+      <input type="date" name="booking_end" class="form-control" value="{{ values.get('booking_end', '') }}" required>
+    </div>
+  </div>
+  <div>
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('admin_exams') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
