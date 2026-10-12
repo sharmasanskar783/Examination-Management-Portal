@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Edit criterion{% endblock %}
+{% block content %}
+<h3 class="mb-3">Edit criterion ({{ exam.name }})</h3>
+<form method="post" class="card card-body shadow-sm" style="max-width: 600px;">
+  <div class="mb-3">
+    <label class="form-label">Criterion name</label>
+    <input type="text" name="criterion" class="form-control" value="{{ values.get('criterion', '') }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Maximum marks</label>
+    <input type="number" step="any" name="max_marks" class="form-control" value="{{ values.get('max_marks', '') }}" required>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Weightage %</label>
+    <input type="number" step="any" name="weightage" class="form-control" value="{{ values.get('weightage', '') }}">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Description</label>
+    <input type="text" name="description" class="form-control" value="{{ values.get('description', '') or '' }}">
+  </div>
+  <div>
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('admin_rubrics', exam_id=exam.id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

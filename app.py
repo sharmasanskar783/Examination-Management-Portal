@@ -409,3 +409,81 @@ def admin_exam_delete(exam_id):
         db.commit()
         flash("Examination deleted.", "success")
     return redirect(url_for("admin_exams"))
+
+
+# ----------------------------------------------------------- admin: rubrics
+def rubric_error(exam, criterion, max_marks, weightage, ignore_id=0):
+    if not criterion:
+        return "Criterion name is required."
+    if max_marks is None or max_marks <= 0:
+        return "Maximum marks must be a positive number."
+    if weightage is None or weightage < 0 or weightage > 100:
+        return "Weightage must be between 0 and 100."
+    used = query("SELECT COALESCE(SUM(max_marks), 0) FROM rubrics WHERE exam_id = ? AND id != ?",
+                 (exam["id"], ignore_id), one=True)[0]
+    if used + max_marks > exam["max_marks"]:
+        return "Rubric marks would add up to more than the examination maximum (%s)." % exam["max_marks"]
+    return None
+
+
+@app.route("/admin/exams/<int:exam_id>/rubrics", methods=["GET", "POST"])
+@login_required("admin")
+def admin_rubrics(exam_id):
+    exam = query("SELECT * FROM exams WHERE id = ?", (exam_id,), one=True)
+    if exam is None:
+        abort(404)
+    if request.method == "POST":
+        criterion = request.form.get("criterion", "").strip()
+        max_marks = to_float(request.form.get("max_marks"))
+        weightage = to_float(request.form.get("weightage") or "0")
+        description = request.form.get("description", "").strip()
+        error = rubric_error(exam, criterion, max_marks, weightage)
+        if error:
+            flash(error, "danger")
+        else:
+            execute("INSERT INTO rubrics (exam_id, criterion, max_marks, weightage, description) "
+                    "VALUES (?, ?, ?, ?, ?)", (exam_id, criterion, max_marks, weightage, description))
+            flash("Rubric criterion added.", "success")
+            return redirect(url_for("admin_rubrics", exam_id=exam_id))
+    rubrics = query("SELECT * FROM rubrics WHERE exam_id = ? ORDER BY id", (exam_id,))
+    total = sum(r["max_marks"] for r in rubrics)
+    return render_template("admin_rubrics.html", exam=exam, rubrics=rubrics, total=total)
+
+
+@app.route("/admin/rubrics/<int:rubric_id>/edit", methods=["GET", "POST"])
+@login_required("admin")
+def admin_rubric_edit(rubric_id):
+    rubric = query("SELECT * FROM rubrics WHERE id = ?", (rubric_id,), one=True)
+    if rubric is None:
+        abort(404)
+    exam = query("SELECT * FROM exams WHERE id = ?", (rubric["exam_id"],), one=True)
+    values = dict(rubric)
+    if request.method == "POST":
+        values = request.form
+        criterion = request.form.get("criterion", "").strip()
+        max_marks = to_float(request.form.get("max_marks"))
+        weightage = to_float(request.form.get("weightage") or "0")
+        description = request.form.get("description", "").strip()
+        error = rubric_error(exam, criterion, max_marks, weightage, rubric_id)
+        if error:
+            flash(error, "danger")
+        else:
+            execute("UPDATE rubrics SET criterion = ?, max_marks = ?, weightage = ?, description = ? "
+                    "WHERE id = ?", (criterion, max_marks, weightage, description, rubric_id))
+            flash("Rubric criterion updated.", "success")
+            return redirect(url_for("admin_rubrics", exam_id=exam["id"]))
+    return render_template("admin_rubric_edit.html", exam=exam, rubric=rubric, values=values)
+
+
+@app.route("/admin/rubrics/<int:rubric_id>/delete", methods=["POST"])
+@login_required("admin")
+def admin_rubric_delete(rubric_id):
+    rubric = query("SELECT * FROM rubrics WHERE id = ?", (rubric_id,), one=True)
+    if rubric is None:
+        abort(404)
+    if count("SELECT COUNT(*) FROM scores WHERE rubric_id = ?", (rubric_id,)) > 0:
+        flash("This criterion has already been used for marking, so it cannot be deleted.", "danger")
+    else:
+        execute("DELETE FROM rubrics WHERE id = ?", (rubric_id,))
+        flash("Criterion deleted.", "success")
+    return redirect(url_for("admin_rubrics", exam_id=rubric["exam_id"]))
