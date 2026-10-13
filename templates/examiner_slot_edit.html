@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Edit slot{% endblock %}
+{% block content %}
+<h3 class="mb-3">Edit slot ({{ slot.exam_name }})</h3>
+<form method="post" class="card card-body shadow-sm" style="max-width: 500px;">
+  <div class="mb-3"><label class="form-label">Date</label><input type="date" name="slot_date" class="form-control" value="{{ values.get('slot_date', '') }}" required></div>
+  <div class="mb-3"><label class="form-label">Start time</label><input type="time" name="start_time" class="form-control" value="{{ values.get('start_time', '') }}" required></div>
+  <div class="mb-3"><label class="form-label">End time</label><input type="time" name="end_time" class="form-control" value="{{ values.get('end_time', '') }}" required></div>
+  <div class="mb-3"><label class="form-label">Capacity</label><input type="number" min="1" name="capacity" class="form-control" value="{{ values.get('capacity', '') }}" required></div>
+  <div>
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('examiner_slots', exam_id=slot.exam_id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

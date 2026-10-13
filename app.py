@@ -563,3 +563,112 @@ def admin_reschedule(booking_id):
             flash("Booking rescheduled.", "success")
             return redirect(url_for("admin_bookings"))
     return render_template("admin_reschedule.html", booking=booking, slots=slots)
+
+
+# ------------------------------------------------------------ examiner pages
+def own_exam(exam_id, examiner_id):
+    exam = query(
+        "SELECT e.*, c.name AS course_name FROM exams e JOIN courses c ON c.id = e.course_id "
+        "WHERE e.id = ? AND e.examiner_id = ?", (exam_id, examiner_id), one=True)
+    if exam is None:
+        abort(404)
+    return exam
+
+
+def own_slot(slot_id, examiner_id):
+    slot = query(
+        "SELECT s.*, e.status AS exam_status, e.name AS exam_name FROM slots s "
+        "JOIN exams e ON e.id = s.exam_id WHERE s.id = ? AND s.examiner_id = ?",
+        (slot_id, examiner_id), one=True)
+    if slot is None:
+        abort(404)
+    return slot
+
+
+@app.route("/examiner/exams")
+@login_required("examiner")
+def examiner_exams():
+    user = current_user()
+    exams = query(
+        "SELECT e.*, c.name AS course_name FROM exams e JOIN courses c ON c.id = e.course_id "
+        "WHERE e.examiner_id = ? ORDER BY e.id DESC", (user["id"],))
+    return render_template("examiner_exams.html", exams=exams)
+
+
+@app.route("/examiner/exams/<int:exam_id>/slots", methods=["GET", "POST"])
+@login_required("examiner")
+def examiner_slots(exam_id):
+    user = current_user()
+    exam = own_exam(exam_id, user["id"])
+    if request.method == "POST":
+        slot_date = request.form.get("slot_date", "")
+        start_time = request.form.get("start_time", "")
+        end_time = request.form.get("end_time", "")
+        capacity = to_int(request.form.get("capacity"))
+        error = None
+        if exam["status"] != "Slot Creation":
+            error = "Slot creation is not open for this examination."
+        elif not (exam["slot_create_start"] <= today() <= exam["slot_create_end"]):
+            error = "Today is outside the slot creation period."
+        elif not valid_date(slot_date) or not valid_time(start_time) or not valid_time(end_time):
+            error = "Please enter a valid date, start time and end time."
+        elif start_time >= end_time:
+            error = "End time must be after start time."
+        elif capacity is None or capacity < 1:
+            error = "Capacity must be at least 1."
+        if error:
+            flash(error, "danger")
+        else:
+            execute("INSERT INTO slots (exam_id, examiner_id, slot_date, start_time, end_time, "
+                    "capacity, available_seats) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (exam_id, user["id"], slot_date, start_time, end_time, capacity, capacity))
+            flash("Slot created.", "success")
+            return redirect(url_for("examiner_slots", exam_id=exam_id))
+    slots = query("SELECT * FROM slots WHERE exam_id = ? AND examiner_id = ? "
+                  "ORDER BY slot_date, start_time", (exam_id, user["id"]))
+    return render_template("examiner_slots.html", exam=exam, slots=slots)
+
+
+@app.route("/examiner/slots/<int:slot_id>/edit", methods=["GET", "POST"])
+@login_required("examiner")
+def examiner_slot_edit(slot_id):
+    user = current_user()
+    slot = own_slot(slot_id, user["id"])
+    has_bookings = count("SELECT COUNT(*) FROM bookings WHERE slot_id = ?", (slot_id,)) > 0
+    if slot["exam_status"] not in ("Draft", "Slot Creation") or has_bookings:
+        flash("This slot can no longer be changed (booking has started or it has bookings).", "danger")
+        return redirect(url_for("examiner_slots", exam_id=slot["exam_id"]))
+    values = dict(slot)
+    if request.method == "POST":
+        values = request.form
+        slot_date = request.form.get("slot_date", "")
+        start_time = request.form.get("start_time", "")
+        end_time = request.form.get("end_time", "")
+        capacity = to_int(request.form.get("capacity"))
+        if not valid_date(slot_date) or not valid_time(start_time) or not valid_time(end_time):
+            flash("Please enter a valid date, start time and end time.", "danger")
+        elif start_time >= end_time:
+            flash("End time must be after start time.", "danger")
+        elif capacity is None or capacity < 1:
+            flash("Capacity must be at least 1.", "danger")
+        else:
+            execute("UPDATE slots SET slot_date = ?, start_time = ?, end_time = ?, capacity = ?, "
+                    "available_seats = ?, status = 'Available' WHERE id = ?",
+                    (slot_date, start_time, end_time, capacity, capacity, slot_id))
+            flash("Slot updated.", "success")
+            return redirect(url_for("examiner_slots", exam_id=slot["exam_id"]))
+    return render_template("examiner_slot_edit.html", slot=slot, values=values)
+
+
+@app.route("/examiner/slots/<int:slot_id>/delete", methods=["POST"])
+@login_required("examiner")
+def examiner_slot_delete(slot_id):
+    user = current_user()
+    slot = own_slot(slot_id, user["id"])
+    has_bookings = count("SELECT COUNT(*) FROM bookings WHERE slot_id = ?", (slot_id,)) > 0
+    if slot["exam_status"] not in ("Draft", "Slot Creation") or has_bookings:
+        flash("This slot can no longer be removed (booking has started or it has bookings).", "danger")
+    else:
+        execute("DELETE FROM slots WHERE id = ?", (slot_id,))
+        flash("Slot removed.", "success")
+    return redirect(url_for("examiner_slots", exam_id=slot["exam_id"]))
