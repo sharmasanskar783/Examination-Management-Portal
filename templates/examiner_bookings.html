@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Booked students{% endblock %}
+{% block content %}
+<h3 class="mb-3">Students booked in my slots</h3>
+<table class="table table-striped bg-white">
+  <thead><tr><th>Student</th><th>Examination</th><th>Slot</th><th>Status</th><th>Marks</th><th></th></tr></thead>
+  <tbody>
+    {% for b in bookings %}
+      <tr>
+        <td>{{ b.student_name }}</td><td>{{ b.exam_name }}</td>
+        <td>{{ b.slot_date }} {{ b.start_time }}-{{ b.end_time }}</td><td>{{ b.status }}</td>
+        <td>{% if b.total_marks is not none %}{{ b.total_marks }} / {{ b.max_marks }}{% endif %}</td>
+        <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('examiner_evaluate', booking_id=b.id) }}">{% if b.status == 'Completed' %}Edit marks{% else %}Evaluate{% endif %}</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="text-muted">No students have booked your slots yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

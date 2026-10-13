@@ -672,3 +672,61 @@ def examiner_slot_delete(slot_id):
         execute("DELETE FROM slots WHERE id = ?", (slot_id,))
         flash("Slot removed.", "success")
     return redirect(url_for("examiner_slots", exam_id=slot["exam_id"]))
+
+
+# ------------------------------------------------ examiner: bookings and evaluate
+@app.route("/examiner/bookings")
+@login_required("examiner")
+def examiner_bookings():
+    user = current_user()
+    bookings = booking_rows("WHERE s.examiner_id = ? AND b.status IN ('Booked', 'Completed')",
+                            (user["id"],))
+    return render_template("examiner_bookings.html", bookings=bookings)
+
+
+@app.route("/examiner/bookings/<int:booking_id>/evaluate", methods=["GET", "POST"])
+@login_required("examiner")
+def examiner_evaluate(booking_id):
+    user = current_user()
+    # the examiner_id check makes sure the examiner can only open their own students
+    rows = booking_rows("WHERE b.id = ? AND s.examiner_id = ?", (booking_id, user["id"]))
+    if not rows:
+        abort(404)
+    booking = rows[0]
+    if booking["status"] == "Cancelled":
+        flash("This booking was cancelled.", "danger")
+        return redirect(url_for("examiner_bookings"))
+    if booking["exam_status"] not in ("Booking Open", "Closed"):
+        flash("Evaluation is allowed only while the examination is Booking Open or Closed.", "danger")
+        return redirect(url_for("examiner_bookings"))
+    rubrics = query("SELECT * FROM rubrics WHERE exam_id = ? ORDER BY id", (booking["exam_id"],))
+    if not rubrics:
+        flash("The admin has not added rubric criteria for this examination yet.", "danger")
+        return redirect(url_for("examiner_bookings"))
+    old = {r["rubric_id"]: r["marks"] for r in
+           query("SELECT * FROM scores WHERE booking_id = ?", (booking_id,))}
+    if request.method == "POST":
+        remarks = request.form.get("remarks", "").strip()
+        given = {}
+        error = None
+        for r in rubrics:
+            marks = to_float(request.form.get("score_%d" % r["id"]))
+            if marks is None or marks < 0 or marks > r["max_marks"]:
+                error = 'Marks for "%s" must be a number from 0 to %s.' % (r["criterion"], r["max_marks"])
+                break
+            given[r["id"]] = marks
+        if error:
+            flash(error, "danger")
+            old = {r["id"]: request.form.get("score_%d" % r["id"], "") for r in rubrics}
+        else:
+            db = get_db()
+            db.execute("DELETE FROM scores WHERE booking_id = ?", (booking_id,))
+            for rubric_id, marks in given.items():
+                db.execute("INSERT INTO scores (booking_id, rubric_id, marks) VALUES (?, ?, ?)",
+                           (booking_id, rubric_id, marks))
+            db.execute("UPDATE bookings SET total_marks = ?, remarks = ?, status = 'Completed' WHERE id = ?",
+                       (sum(given.values()), remarks, booking_id))
+            db.commit()
+            flash("Marks saved.", "success")
+            return redirect(url_for("examiner_bookings"))
+    return render_template("examiner_evaluate.html", booking=booking, rubrics=rubrics, old=old)
