@@ -1,0 +1,15 @@
+<table class="table table-striped bg-white">
+  <thead><tr><th>ID</th><th>Student</th><th>Examination</th><th>Examiner</th><th>Slot</th><th>Booked on</th><th>Status</th><th>Marks</th><th></th></tr></thead>
+  <tbody>
+    {% for b in bookings %}
+      <tr>
+        <td>{{ b.id }}</td><td>{{ b.student_name }}</td><td>{{ b.exam_name }}</td><td>{{ b.examiner_name }}</td>
+        <td>{{ b.slot_date }} {{ b.start_time }}-{{ b.end_time }}</td><td>{{ b.booking_date }}</td><td>{{ b.status }}</td>
+        <td>{% if b.total_marks is not none %}{{ b.total_marks }}{% endif %}</td>
+        <td>{% if b.status == 'Booked' %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_reschedule', booking_id=b.id) }}">Reschedule</a>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="text-muted">No bookings found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

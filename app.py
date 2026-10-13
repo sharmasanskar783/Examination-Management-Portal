@@ -506,3 +506,60 @@ def admin_slots():
         "ORDER BY s.slot_date, s.start_time"
     )
     return render_template("admin_slots.html", slots=slots)
+
+
+# ------------------------------------------- admin: bookings, search, reschedule
+@app.route("/admin/bookings")
+@login_required("admin")
+def admin_bookings():
+    return render_template("admin_bookings.html", bookings=booking_rows())
+
+
+@app.route("/admin/search")
+@login_required("admin")
+def admin_search():
+    q = request.args.get("q", "").strip()
+    students = examiners = exams = bookings = []
+    if q:
+        like = "%" + q + "%"
+        students = query("SELECT * FROM users WHERE role = 'student' AND "
+                         "(name LIKE ? OR CAST(id AS TEXT) = ?)", (like, q))
+        examiners = query("SELECT * FROM users WHERE role = 'examiner' AND "
+                          "(name LIKE ? OR CAST(id AS TEXT) = ?)", (like, q))
+        exams = query("SELECT e.*, c.name AS course_name FROM exams e "
+                      "JOIN courses c ON c.id = e.course_id "
+                      "WHERE e.name LIKE ? OR CAST(e.id AS TEXT) = ?", (like, q))
+        bookings = booking_rows("WHERE u.name LIKE ? OR e.name LIKE ? OR CAST(b.id AS TEXT) = ?",
+                                (like, like, q))
+    return render_template("admin_search.html", q=q, students=students, examiners=examiners,
+                           exams=exams, bookings=bookings)
+
+
+@app.route("/admin/bookings/<int:booking_id>/reschedule", methods=["GET", "POST"])
+@login_required("admin")
+def admin_reschedule(booking_id):
+    rows = booking_rows("WHERE b.id = ?", (booking_id,))
+    if not rows:
+        abort(404)
+    booking = rows[0]
+    if booking["status"] != "Booked":
+        flash("Only bookings with status Booked can be rescheduled.", "danger")
+        return redirect(url_for("admin_bookings"))
+    slots = query("SELECT * FROM slots WHERE exam_id = ? AND id != ? AND available_seats > 0 "
+                  "ORDER BY slot_date, start_time", (booking["exam_id"], booking["slot_id"]))
+    if request.method == "POST":
+        new_slot_id = to_int(request.form.get("new_slot_id"))
+        if new_slot_id not in [s["id"] for s in slots]:
+            flash("Please choose one of the available slots.", "danger")
+        else:
+            db = get_db()
+            db.execute("UPDATE slots SET available_seats = available_seats + 1, status = 'Available' "
+                       "WHERE id = ?", (booking["slot_id"],))
+            db.execute("UPDATE slots SET available_seats = available_seats - 1, "
+                       "status = CASE WHEN available_seats - 1 <= 0 THEN 'Full' ELSE 'Available' END "
+                       "WHERE id = ?", (new_slot_id,))
+            db.execute("UPDATE bookings SET slot_id = ? WHERE id = ?", (new_slot_id, booking_id))
+            db.commit()
+            flash("Booking rescheduled.", "success")
+            return redirect(url_for("admin_bookings"))
+    return render_template("admin_reschedule.html", booking=booking, slots=slots)

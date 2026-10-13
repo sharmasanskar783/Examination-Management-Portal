@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<h3 class="mb-3">Search</h3>
+<form method="get" class="d-flex gap-2 mb-4" style="max-width: 600px;">
+  <input type="text" name="q" class="form-control" placeholder="Name or ID" value="{{ q }}">
+  <button class="btn btn-primary">Search</button>
+</form>
+{% if q %}
+  <h5>Students</h5>
+  <table class="table table-sm bg-white mb-4">
+    {% for u in students %}<tr><td>{{ u.id }}</td><td>{{ u.name }}</td><td>{{ u.email }}</td></tr>
+    {% else %}<tr><td class="text-muted">No students found.</td></tr>{% endfor %}
+  </table>
+  <h5>Examiners</h5>
+  <table class="table table-sm bg-white mb-4">
+    {% for u in examiners %}<tr><td>{{ u.id }}</td><td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.status }}</td></tr>
+    {% else %}<tr><td class="text-muted">No examiners found.</td></tr>{% endfor %}
+  </table>
+  <h5>Examinations</h5>
+  <table class="table table-sm bg-white mb-4">
+    {% for e in exams %}<tr><td>{{ e.id }}</td><td>{{ e.name }}</td><td>{{ e.course_name }}</td><td>{{ e.status }}</td></tr>
+    {% else %}<tr><td class="text-muted">No examinations found.</td></tr>{% endfor %}
+  </table>
+  <h5>Bookings</h5>
+  {% include '_admin_bookings_table.html' %}
+{% endif %}
+{% endblock %}
