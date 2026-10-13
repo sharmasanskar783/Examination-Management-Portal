@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}All slots{% endblock %}
+{% block content %}
+<h3 class="mb-3">All examination slots</h3>
+<table class="table table-striped bg-white">
+  <thead><tr><th>ID</th><th>Examination</th><th>Examiner</th><th>Date</th><th>Time</th><th>Capacity</th><th>Seats left</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for s in slots %}
+      <tr>
+        <td>{{ s.id }}</td><td>{{ s.exam_name }}</td><td>{{ s.examiner_name }}</td><td>{{ s.slot_date }}</td>
+        <td>{{ s.start_time }} - {{ s.end_time }}</td><td>{{ s.capacity }}</td><td>{{ s.available_seats }}</td><td>{{ s.status }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="text-muted">No slots yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

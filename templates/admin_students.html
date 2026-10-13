@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Students{% endblock %}
+{% block content %}
+<h3 class="mb-3">Students</h3>
+<table class="table table-striped bg-white">
+  <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Contact</th></tr></thead>
+  <tbody>
+    {% for u in students %}
+      <tr><td>{{ u.id }}</td><td>{{ u.name }}</td><td>{{ u.email }}</td><td>{{ u.department }}</td><td>{{ u.contact }}</td></tr>
+    {% else %}
+      <tr><td colspan="5" class="text-muted">No students yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

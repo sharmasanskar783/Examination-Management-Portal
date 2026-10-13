@@ -487,3 +487,22 @@ def admin_rubric_delete(rubric_id):
         execute("DELETE FROM rubrics WHERE id = ?", (rubric_id,))
         flash("Criterion deleted.", "success")
     return redirect(url_for("admin_rubrics", exam_id=rubric["exam_id"]))
+
+
+# ------------------------------------------- admin: view, search, reschedule
+@app.route("/admin/students")
+@login_required("admin")
+def admin_students():
+    students = query("SELECT * FROM users WHERE role = 'student' ORDER BY name")
+    return render_template("admin_students.html", students=students)
+
+
+@app.route("/admin/slots")
+@login_required("admin")
+def admin_slots():
+    slots = query(
+        "SELECT s.*, e.name AS exam_name, u.name AS examiner_name FROM slots s "
+        "JOIN exams e ON e.id = s.exam_id JOIN users u ON u.id = s.examiner_id "
+        "ORDER BY s.slot_date, s.start_time"
+    )
+    return render_template("admin_slots.html", slots=slots)
