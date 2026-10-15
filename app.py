@@ -836,3 +836,42 @@ def student_cancel(booking_id):
         db.commit()
         flash("Booking cancelled.", "success")
     return redirect(url_for("student_bookings"))
+
+
+# ------------------------------------------------ student: results and profile
+@app.route("/student/results")
+@login_required("student")
+def student_results():
+    user = current_user()
+    rows = booking_rows("WHERE b.student_id = ? AND b.status = 'Completed' AND e.status = 'Completed'",
+                        (user["id"],))
+    results = []
+    for b in rows:
+        scores = query("SELECT r.criterion, r.max_marks, sc.marks FROM scores sc "
+                       "JOIN rubrics r ON r.id = sc.rubric_id WHERE sc.booking_id = ?", (b["id"],))
+        results.append({"booking": b, "scores": scores})
+    return render_template("student_results.html", results=results)
+
+
+@app.route("/student/profile", methods=["GET", "POST"])
+@login_required("student")
+def student_profile():
+    user = current_user()
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        department = request.form.get("department", "").strip()
+        contact = request.form.get("contact", "").strip()
+        new_password = request.form.get("password", "")
+        if not name:
+            flash("Name is required.", "danger")
+        elif new_password and len(new_password) < 6:
+            flash("New password must have at least 6 characters.", "danger")
+        else:
+            execute("UPDATE users SET name = ?, department = ?, contact = ? WHERE id = ?",
+                    (name, department, contact, user["id"]))
+            if new_password:
+                execute("UPDATE users SET password = ? WHERE id = ?",
+                        (generate_password_hash(new_password), user["id"]))
+            flash("Profile updated.", "success")
+            return redirect(url_for("student_profile"))
+    return render_template("student_profile.html")

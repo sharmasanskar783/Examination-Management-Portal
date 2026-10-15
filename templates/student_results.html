@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<h3 class="mb-3">Published results</h3>
+{% for r in results %}
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <h5>{{ r.booking.exam_name }} <span class="badge bg-primary">{{ r.booking.total_marks }} / {{ r.booking.max_marks }}</span></h5>
+      <p class="text-muted mb-2">{{ r.booking.course_name }} | {{ r.booking.slot_date }} | Examiner: {{ r.booking.examiner_name }}</p>
+      <table class="table table-sm">
+        <thead><tr><th>Criterion</th><th>Marks</th></tr></thead>
+        <tbody>
+          {% for s in r.scores %}<tr><td>{{ s.criterion }}</td><td>{{ s.marks }} / {{ s.max_marks }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+      <p class="mb-0"><strong>Remarks:</strong> {{ r.booking.remarks or 'No remarks.' }}</p>
+    </div>
+  </div>
+{% else %}
+  <p class="text-muted">No results have been published yet.</p>
+{% endfor %}
+{% endblock %}
