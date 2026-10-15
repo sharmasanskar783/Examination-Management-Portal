@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Examinations{% endblock %}
+{% block content %}
+<h3 class="mb-3">Examinations</h3>
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-5"><input type="text" name="q" class="form-control" placeholder="Search by examination or course" value="{{ q }}"></div>
+  <div class="col-md-3">
+    <select name="exam_type" class="form-select">
+      <option value="">All types</option>
+      {% for t in exam_types %}
+        <option value="{{ t }}" {% if exam_type == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Search</button></div>
+</form>
+<table class="table table-striped bg-white">
+  <thead><tr><th>Examination</th><th>Course</th><th>Type</th><th>Duration</th><th>Max marks</th><th>Booking period</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for e in exams %}
+      <tr>
+        <td>{{ e.name }}</td><td>{{ e.course_code }} - {{ e.course_name }}</td><td>{{ e.exam_type }}</td>
+        <td>{{ e.duration }} min</td><td>{{ e.max_marks }}</td>
+        <td>{{ e.booking_start }} to {{ e.booking_end }}</td><td>{{ e.status }}</td>
+        <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('student_exam_detail', exam_id=e.id) }}">View slots</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="text-muted">No examinations found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

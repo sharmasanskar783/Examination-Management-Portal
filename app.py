@@ -730,3 +730,78 @@ def examiner_evaluate(booking_id):
             flash("Marks saved.", "success")
             return redirect(url_for("examiner_bookings"))
     return render_template("examiner_evaluate.html", booking=booking, rubrics=rubrics, old=old)
+
+
+# ------------------------------------------------------------- student pages
+@app.route("/student/exams")
+@login_required("student")
+def student_exams():
+    q = request.args.get("q", "").strip()
+    exam_type = request.args.get("exam_type", "").strip()
+    sql = ("SELECT e.*, c.name AS course_name, c.code AS course_code FROM exams e "
+           "JOIN courses c ON c.id = e.course_id WHERE e.status != 'Draft'")
+    args = []
+    if q:
+        sql += " AND (e.name LIKE ? OR c.name LIKE ? OR c.code LIKE ?)"
+        args += ["%" + q + "%"] * 3
+    if exam_type:
+        sql += " AND e.exam_type = ?"
+        args.append(exam_type)
+    exams = query(sql + " ORDER BY e.booking_start", args)
+    return render_template("student_exams.html", exams=exams, q=q, exam_type=exam_type,
+                           exam_types=EXAM_TYPES)
+
+
+@app.route("/student/exams/<int:exam_id>")
+@login_required("student")
+def student_exam_detail(exam_id):
+    user = current_user()
+    exam = query("SELECT e.*, c.name AS course_name, u.name AS examiner_name FROM exams e "
+                 "JOIN courses c ON c.id = e.course_id JOIN users u ON u.id = e.examiner_id "
+                 "WHERE e.id = ? AND e.status != 'Draft'", (exam_id,), one=True)
+    if exam is None:
+        abort(404)
+    slots = query("SELECT * FROM slots WHERE exam_id = ? ORDER BY slot_date, start_time", (exam_id,))
+    my_booking = query(
+        "SELECT b.* FROM bookings b JOIN slots s ON s.id = b.slot_id "
+        "WHERE b.student_id = ? AND s.exam_id = ? AND b.status IN ('Booked', 'Completed')",
+        (user["id"], exam_id), one=True)
+    booking_open = exam["status"] == "Booking Open" and exam["booking_start"] <= today() <= exam["booking_end"]
+    return render_template("student_exam_detail.html", exam=exam, slots=slots,
+                           my_booking=my_booking, booking_open=booking_open)
+
+
+@app.route("/student/slots/<int:slot_id>/book", methods=["POST"])
+@login_required("student")
+def student_book(slot_id):
+    user = current_user()
+    slot = query("SELECT s.*, e.status AS exam_status, e.booking_start, e.booking_end FROM slots s "
+                 "JOIN exams e ON e.id = s.exam_id WHERE s.id = ?", (slot_id,), one=True)
+    if slot is None:
+        abort(404)
+    duplicate = query(
+        "SELECT b.id FROM bookings b JOIN slots s ON s.id = b.slot_id "
+        "WHERE b.student_id = ? AND s.exam_id = ? AND b.status IN ('Booked', 'Completed')",
+        (user["id"], slot["exam_id"]), one=True)
+    error = None
+    if slot["exam_status"] != "Booking Open":
+        error = "Booking is not open for this examination."
+    elif not (slot["booking_start"] <= today() <= slot["booking_end"]):
+        error = "Today is outside the booking period."
+    elif slot["available_seats"] < 1 or slot["status"] != "Available":
+        error = "This slot is full."
+    elif duplicate:
+        error = "You already have a booking for this examination."
+    if error:
+        flash(error, "danger")
+    else:
+        db = get_db()
+        db.execute("INSERT INTO bookings (student_id, slot_id, booking_date, status) VALUES (?, ?, ?, 'Booked')",
+                   (user["id"], slot_id, datetime.now().strftime("%Y-%m-%d %H:%M")))
+        # one seat less; when no seats are left the slot becomes Full automatically
+        db.execute("UPDATE slots SET available_seats = available_seats - 1, "
+                   "status = CASE WHEN available_seats - 1 <= 0 THEN 'Full' ELSE 'Available' END "
+                   "WHERE id = ?", (slot_id,))
+        db.commit()
+        flash("Slot booked successfully.", "success")
+    return redirect(url_for("student_exam_detail", exam_id=slot["exam_id"]))
