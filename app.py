@@ -805,3 +805,34 @@ def student_book(slot_id):
         db.commit()
         flash("Slot booked successfully.", "success")
     return redirect(url_for("student_exam_detail", exam_id=slot["exam_id"]))
+
+
+# ------------------------------------------------ student: bookings and cancel
+@app.route("/student/bookings")
+@login_required("student")
+def student_bookings():
+    user = current_user()
+    bookings = booking_rows("WHERE b.student_id = ?", (user["id"],))
+    return render_template("student_bookings.html", bookings=bookings, today=today())
+
+
+@app.route("/student/bookings/<int:booking_id>/cancel", methods=["POST"])
+@login_required("student")
+def student_cancel(booking_id):
+    user = current_user()
+    rows = booking_rows("WHERE b.id = ? AND b.student_id = ?", (booking_id, user["id"]))
+    if not rows:
+        abort(404)
+    booking = rows[0]
+    if booking["status"] != "Booked":
+        flash("Only active bookings can be cancelled.", "danger")
+    elif booking["exam_status"] != "Booking Open" or today() > booking["booking_end"]:
+        flash("The booking deadline has passed, so you cannot cancel now.", "danger")
+    else:
+        db = get_db()
+        db.execute("UPDATE bookings SET status = 'Cancelled' WHERE id = ?", (booking_id,))
+        db.execute("UPDATE slots SET available_seats = available_seats + 1, status = 'Available' "
+                   "WHERE id = ?", (booking["slot_id"],))
+        db.commit()
+        flash("Booking cancelled.", "success")
+    return redirect(url_for("student_bookings"))

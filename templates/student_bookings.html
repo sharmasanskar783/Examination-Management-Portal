@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}My bookings{% endblock %}
+{% block content %}
+<h3 class="mb-3">My bookings (history)</h3>
+<table class="table table-striped bg-white">
+  <thead><tr><th>Examination</th><th>Slot</th><th>Booked on</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for b in bookings %}
+      <tr>
+        <td>{{ b.exam_name }}</td><td>{{ b.slot_date }} {{ b.start_time }}-{{ b.end_time }}</td>
+        <td>{{ b.booking_date }}</td><td>{{ b.status }}</td>
+        <td>
+          {% if b.status == 'Booked' and b.exam_status == 'Booking Open' and today <= b.booking_end %}
+            <form method="post" action="{{ url_for('student_cancel', booking_id=b.id) }}">
+              <button class="btn btn-sm btn-outline-danger">Cancel</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="text-muted">You have not booked anything yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
