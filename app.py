@@ -875,3 +875,8 @@ def student_profile():
             flash("Profile updated.", "success")
             return redirect(url_for("student_profile"))
     return render_template("student_profile.html")
+
+
+# ------------------------------------------------------------------ run
+if __name__ == "__main__":
+    app.run(debug=True)
